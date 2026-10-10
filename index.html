@@ -109,77 +109,14 @@
       </div>
     </div>
 
-    <!-- Przełączniki: Muzyka kosmiczna & Szybka Edycja -->
+    <!-- Przełącznik: Muzyka kosmiczna -->
     <div class="flex items-center space-x-2">
       <button id="audioBtn" class="px-3 py-1.5 rounded-full glass-panel text-xs font-mono-code text-indigo-300 hover:text-white hover:border-indigo-400 transition flex items-center space-x-1.5">
         <span id="audioIcon">🔈</span>
         <span id="audioLabel">Dźwięk: OFF</span>
       </button>
-      <button id="editToggleBtn" class="px-3 py-1.5 rounded-full glass-panel text-xs font-mono-code text-pink-300 hover:text-white hover:border-pink-400 transition flex items-center space-x-1.5">
-        <span>✏️</span>
-        <span class="hidden sm:inline">Dostosuj bilet</span>
-      </button>
     </div>
   </header>
-
-  <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-    <div class="glass-panel w-full max-w-md rounded-2xl p-6 border border-indigo-500/30 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center pb-2 border-b border-gray-700">
-        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-          <span>🚀</span> Spersonalizuj zaproszenie
-        </h3>
-        <button id="closeEditBtn" class="text-gray-400 hover:text-white text-xl">&times;</button>
-      </div>
-      
-      <div class="space-y-3 text-sm">
-        <div>
-          <label class="block text-gray-400 text-xs font-mono-code mb-1">Dla kogo (Jej imię):</label>
-          <input type="text" id="inputRecipient" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500" value="Dla Ciebie">
-        </div>
-        <div>
-          <label class="block text-gray-400 text-xs font-mono-code mb-1">Twój Podpis / Pilot:</label>
-          <input type="text" id="inputSender" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="Twój Pilot w Kapsule Obok">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-gray-400 text-xs font-mono-code mb-1">Data:</label>
-            <input type="text" id="inputDate" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="21 Października">
-          </div>
-          <div>
-            <label class="block text-gray-400 text-xs font-mono-code mb-1">Godzina Startu Symulatora:</label>
-            <input type="text" id="inputTime" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="18:10">
-          </div>
-        </div>
-        <div>
-          <label class="block text-gray-400 text-xs font-mono-code mb-1">Plan po powrocie do grawitacji 1G:</label>
-          <input type="text" id="inputNote" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500" value="Po lądowaniu stabilizacja pulsu przy gęstej gorącej czekoladzie.">
-        </div>
-
-        <div class="border-t border-gray-800 pt-3 mt-3">
-          <label class="block text-indigo-400 text-xs font-mono-code mb-1">🔑 Klucz do otwarcia strony (PIN):</label>
-          <input type="text" id="inputPasscode" class="w-full bg-gray-900 border border-indigo-700/60 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="2110">
-          <p class="text-[10px] text-gray-500 mt-1">Domyślnie: 2110 (czyli 21.10). Wpisz co chcesz!</p>
-        </div>
-
-        <div>
-          <label class="block text-emerald-400 text-xs font-mono-code mb-1">📲 Twój nr telefonu (WhatsApp - format z 48):</label>
-          <input type="text" id="inputPhone" class="w-full bg-gray-900 border border-emerald-700/60 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500" placeholder="np. 48123456789" value="">
-          <p class="text-[10px] text-gray-500 mt-1">Gdy kliknie „Lecę!”, otworzy się jej WhatsApp z gotową wiadomością do Ciebie.</p>
-        </div>
-
-        <div>
-          <label class="block text-sky-400 text-xs font-mono-code mb-1">✉️ Twój e-mail (opcjonalnie do kopii mailowej):</label>
-          <input type="email" id="inputEmail" class="w-full bg-gray-900 border border-sky-700/60 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500" placeholder="twoj@email.com" value="">
-        </div>
-      </div>
-
-      <div class="pt-3 flex justify-end">
-        <button id="saveEditBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-semibold text-sm shadow-lg transition">
-          Zapisz i zamknij
-        </button>
-      </div>
-    </div>
-  </div>
 
   <main class="relative z-10 w-full max-w-3xl mx-auto px-4 py-8 flex-1 flex flex-col items-center justify-center">
 
@@ -389,6 +326,11 @@
   </footer>
 
   <script>
+    // --- 0. DANE MISJI ZAKODOWANE NA SZTYWNO ---
+    // Wpisz tutaj swój numer telefonu (z prefiksem 48, np. '48500111222'):
+    const PILOT_PHONE = "48500753659"; 
+    const ACCESS_PIN = "2110"; // Kod odblokowania biletu (dzień i miesiąc)
+
     // --- 1. GWIEZDNE TŁO (Canvas Starfield) ---
     const canvas = document.getElementById('starfield');
     const ctx = canvas.getContext('2d');
@@ -563,16 +505,10 @@
 
     document.getElementById('audioBtn').addEventListener('click', toggleAmbientSound);
 
-    // --- USTAWIENIA KONFIGURACYJNE (PIN, WHATSAPP, EMAIL) ---
-    // Możesz też przekazać klucz w URL: ?key=alpaka2110
-    let configPasscode = "alpaka2110";
-    let targetPhone = ""; // np. "48500753659"
-    let targetEmail = ""; // np. "Banasik.paul@gmail.com"
-
     // Sprawdzenie URL params (opcjonalne obejście PINu: ?key=2110)
     const urlParams = new URLSearchParams(window.location.search);
     const paramKey = urlParams.get('key');
-    if (paramKey && paramKey.trim() === configPasscode) {
+    if (paramKey && paramKey.trim() === ACCESS_PIN) {
       document.getElementById('accessGate').classList.add('hidden');
     }
 
@@ -584,7 +520,7 @@
 
     function checkPasscode() {
       const entered = gatePasscode.value.trim().toLowerCase();
-      if (entered === configPasscode.toLowerCase()) {
+      if (entered === ACCESS_PIN.toLowerCase()) {
         gateError.classList.add('hidden');
         accessGate.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
         accessGate.style.opacity = '0';
@@ -611,64 +547,47 @@
     const rsvpText = document.getElementById('rsvpResponseText');
     const notifyChoiceBox = document.getElementById('notifyChoiceBox');
     const sendWhatsAppLink = document.getElementById('sendWhatsAppLink');
-    const sendMailLink = document.getElementById('sendMailLink');
 
-    function prepareNotificationLinks(decisionText) {
-      const recipientName = document.getElementById('displayRecipient').innerText;
-      const cleanPhone = targetPhone.replace(/[^0-9]/g, '');
-      const message = `🚀 Meldunek z kapsuły VR (${recipientName}):\n"${decisionText}"\nWidzimy się 21.10 w Planetarium Śląskim!`;
+    function handleDecision(decisionText) {
+      const cleanPhone = PILOT_PHONE.replace(/[^0-9]/g, '');
+      const message = `🚀 Meldunek Załogantki z kapsuły VR:\n"${decisionText}"\nWidzimy się 21.10 w Planetarium Śląskim!`;
       const encodedMsg = encodeURIComponent(message);
+      const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodedMsg}` : `https://api.whatsapp.com/send?text=${encodedMsg}`;
 
-      // WhatsApp URL
-      if (cleanPhone) {
-        sendWhatsAppLink.href = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
-        sendWhatsAppLink.classList.remove('hidden');
-      } else {
-        // Jeśli nie podano numeru, wywołaj WhatsApp z uniwersalnym tekstem
-        sendWhatsAppLink.href = `https://api.whatsapp.com/send?text=${encodedMsg}`;
-      }
-
-      // Email URL
-      const email = targetEmail.trim();
-      const subject = encodeURIComponent("🚀 Meldunek przedstartowy: Misja VR 21.10");
-      sendMailLink.href = `mailto:${email}?subject=${subject}&body=${encodedMsg}`;
-
+      sendWhatsAppLink.href = waUrl;
       notifyChoiceBox.classList.remove('hidden');
 
-      // Jeśli skonfigurowany jest numer telefonu, automatycznie otwórz WhatsApp w nowej karcie po 1.2 sekundy
-      if (cleanPhone) {
-        setTimeout(() => {
-          window.open(`https://wa.me/${cleanPhone}?text=${encodedMsg}`, '_blank');
-        }, 1200);
-      }
+      // Bezpośrednie przekierowanie na WhatsApp po tapnięciu na telefonie
+      setTimeout(() => {
+        window.location.href = waUrl;
+      }, 700);
     }
 
     function triggerStarConfetti() {
-      // Wystrzelenie kolorowych gwiezdnych drobin
       confetti({
         particleCount: 80,
         spread: 90,
         origin: { y: 0.65 },
         colors: ['#818cf8', '#f472b6', '#38bdf8', '#fbbf24', '#ffffff']
       });
-      playCosmicBeep(783.99, 0.4); // G5
-      setTimeout(() => playCosmicBeep(1046.50, 0.6), 200); // C6
+      playCosmicBeep(783.99, 0.4);
+      setTimeout(() => playCosmicBeep(1046.50, 0.6), 200);
     }
 
     acceptBtn.addEventListener('click', () => {
       rsvpBox.classList.remove('hidden');
-      const text = 'Zakładam gogle i wchodzę do kapsuły! Zobaczymy, kto lepiej zniesie przeciążenia!';
-      rsvpText.innerText = '🎉 Wspaniale! Status pasażera: POTWIERDZONY.';
+      const text = 'Wchodzę do kapsuły 360°, zakładam gogle i lecimy! Zobaczymy, kto lepiej zniesie przeciążenia.';
+      rsvpText.innerText = '🎉 Kapsuła VR potwierdzona! Przekierowuję meldunek na WhatsApp...';
       triggerStarConfetti();
-      prepareNotificationLinks(text);
+      handleDecision(text);
     });
 
     sweetConditionBtn.addEventListener('click', () => {
       rsvpBox.classList.remove('hidden');
-      const text = 'Wchodzę do kapsuły VR, ale pamiętaj: po lądowaniu obowiązkowa gorąca czekolada!';
-      rsvpText.innerText = '☕ Warunek przyjęty! Deser i gorąca czekolada wpisane w oficjalny protokół!';
+      const text = 'Lecę na te 406 km, ale pamiętaj: po lądowaniu w grawitacji 1G natychmiast stawiasz gorącą czekoladę!';
+      rsvpText.innerText = '☕ Warunek przyjęty! Przekierowuję meldunek na WhatsApp...';
       triggerStarConfetti();
-      prepareNotificationLinks(text);
+      handleDecision(text);
     });
 
     // Przycisk testu biletu (Skaner)
@@ -683,46 +602,6 @@
       const original = scanBtn.innerHTML;
       scanBtn.innerHTML = '<span>✅</span><span>Bilet zweryfikowany: 100% Ważny</span>';
       setTimeout(() => scanBtn.innerHTML = original, 2500);
-    });
-
-    const editModal = document.getElementById('editModal');
-    const editToggleBtn = document.getElementById('editToggleBtn');
-    const closeEditBtn = document.getElementById('closeEditBtn');
-    const saveEditBtn = document.getElementById('saveEditBtn');
-
-    editToggleBtn.addEventListener('click', () => {
-      editModal.classList.remove('hidden');
-    });
-
-    closeEditBtn.addEventListener('click', () => {
-      editModal.classList.add('hidden');
-    });
-
-    saveEditBtn.addEventListener('click', () => {
-      const recipient = document.getElementById('inputRecipient').value.trim() || 'Leo';
-      const sender = document.getElementById('inputSender').value.trim() || 'Twój Kate';
-      const date = document.getElementById('inputDate').value.trim() || '21 Października';
-      const time = document.getElementById('inputTime').value.trim() || '18:15';
-      const note = document.getElementById('inputNote').value.trim() || 'Po seansie lądowanie na deserze...';
-
-      // Nowe pola: PIN, WhatsApp, Email
-      configPasscode = document.getElementById('inputPasscode').value.trim() || '2110';
-      targetPhone = document.getElementById('inputPhone').value.trim();
-      targetEmail = document.getElementById('inputEmail').value.trim();
-
-      document.getElementById('displayRecipient').innerText = recipient;
-      document.getElementById('displaySender').innerText = sender;
-      document.getElementById('displayDate').innerText = date;
-      document.getElementById('displayTime').innerText = time;
-      document.getElementById('displayNote').innerText = note;
-
-      editModal.classList.add('hidden');
-      playCosmicBeep(659.25, 0.3); // E5
-    });
-
-    // Zamknięcie modalu po kliknięciu w tło
-    editModal.addEventListener('click', (e) => {
-      if (e.target === editModal) editModal.classList.add('hidden');
     });
   </script>
 </body>
