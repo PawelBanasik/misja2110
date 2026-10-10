@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karta Pokładowa • Misja Planetarium Śląskie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;600&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .font-romantic {
+      font-family: 'Playfair Display', serif;
+    }
+
+    /* Holograficzny blask i gradienty */
+    .holo-glow {
+      box-shadow: 0 0 50px -10px rgba(99, 102, 241, 0.35), 0 0 25px -5px rgba(236, 72, 153, 0.25);
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .ticket-edge-left {
+      mask-image: radial-gradient(circle at 0px 50%, transparent 16px, black 17px);
+    }
+    .ticket-edge-right {
+      mask-image: radial-gradient(circle at 100% 50%, transparent 16px, black 17px);
+    }
+    .barcode-line {
+      display: inline-block;
+      background-color: #cbd5e1;
+      height: 48px;
+    }
+
+    /* Efekt CRT / Terminal scanline */
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 38, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 6px 100%;
+    }
+
+    /* Animacja pulsowania stacji kosmicznej */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 0.9; transform: scale(1.03); }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen relative flex flex-col justify-between selection:bg-pink-500 selection:text-white">
+
+  <canvas id="starfield" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+  <!-- Mgławica w tle -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-[20%] -left-[10%] w-[60vw] h-[60vw] rounded-full bg-gradient-to-br from-indigo-700/20 via-purple-600/10 to-transparent blur-3xl animate-pulse-glow"></div>
+    <div class="absolute -bottom-[20%] -right-[10%] w-[55vw] h-[55vw] rounded-full bg-gradient-to-tl from-pink-600/20 via-rose-500/10 to-transparent blur-3xl animate-pulse-glow" style="animation-delay: 2s;"></div>
+  </div>
+
+  <!-- EKRAN BLOKADY: KOD DOSTĘPU / BRAMKA PRYWATNOŚCI -->
+  <div id="accessGate" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md scanlines">
+    <div class="w-full max-w-sm glass-panel rounded-3xl p-6 sm:p-8 border border-indigo-500/40 shadow-2xl text-center relative overflow-hidden">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-indigo-500/30 to-pink-500/30 border border-indigo-400/40 flex items-center justify-center text-2xl mb-4">
+        🔐
+      </div>
+      <span class="text-[10px] font-mono-code uppercase tracking-widest text-indigo-400 block mb-1">STREFA KONTROLI LOTÓW • DOK 406</span>
+      <h2 class="text-xl font-bold text-white tracking-wide mb-2">Dostęp Zastrzeżony</h2>
+      <p class="text-xs text-gray-400 mb-6">Wprowadź kod autoryzacji kapsuły VR, aby odblokować kartę pokładową na 21.10.</p>
+
+      <div class="space-y-4">
+        <div class="relative">
+          <input type="password" id="gatePasscode" maxlength="10" placeholder="KOD DOSTĘPU (np. 2110)" class="w-full text-center tracking-[0.3em] font-mono-code text-lg py-3 px-4 bg-slate-900 border border-indigo-500/50 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition">
+        </div>
+        <p id="gateError" class="hidden text-xs text-rose-400 font-mono-code font-medium">⚠️ Kod niepoprawny. Spróbuj ponownie lub zapytaj Pilota.</p>
+        <button id="gateSubmitBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-semibold text-sm transition shadow-lg shadow-indigo-500/25 active:scale-[0.98]">
+          Autoryzuj i otwórz bilet 🚀
+        </button>
+        <p class="text-[11px] text-gray-500 font-mono-code">Wskazówka: Dzień i miesiąc startu</p>
+      </div>
+    </div>
+  </div>
+
+  <header class="relative z-10 w-full max-w-4xl mx-auto px-4 pt-6 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </div>
+      <div>
+        <span class="text-xs uppercase tracking-widest text-indigo-400 font-mono-code block">Misja VR • ISS APOGEUM 406 KM</span>
+        <h1 class="text-sm font-semibold tracking-wide text-gray-200">Planetarium – Śląski Park Nauki</h1>
+      </div>
+    </div>
+
+    <!-- Przełączniki: Muzyka kosmiczna & Szybka Edycja -->
+    <div class="flex items-center space-x-2">
+      <button id="audioBtn" class="px-3 py-1.5 rounded-full glass-panel text-xs font-mono-code text-indigo-300 hover:text-white hover:border-indigo-400 transition flex items-center space-x-1.5">
+        <span id="audioIcon">🔈</span>
+        <span id="audioLabel">Dźwięk: OFF</span>
+      </button>
+      <button id="editToggleBtn" class="px-3 py-1.5 rounded-full glass-panel text-xs font-mono-code text-pink-300 hover:text-white hover:border-pink-400 transition flex items-center space-x-1.5">
+        <span>✏️</span>
+        <span class="hidden sm:inline">Dostosuj bilet</span>
+      </button>
+    </div>
+  </header>
+
+  <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="glass-panel w-full max-w-md rounded-2xl p-6 border border-indigo-500/30 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-gray-700">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>🚀</span> Spersonalizuj zaproszenie
+        </h3>
+        <button id="closeEditBtn" class="text-gray-400 hover:text-white text-xl">&times;</button>
+      </div>
+      
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-gray-400 text-xs font-mono-code mb-1">Dla kogo (Jej imię):</label>
+          <input type="text" id="inputRecipient" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500" value="Dla Ciebie">
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs font-mono-code mb-1">Twój Podpis / Pilot:</label>
+          <input type="text" id="inputSender" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="Twój Pilot w Kapsule Obok">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-gray-400 text-xs font-mono-code mb-1">Data:</label>
+            <input type="text" id="inputDate" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="21 Października">
+          </div>
+          <div>
+            <label class="block text-gray-400 text-xs font-mono-code mb-1">Godzina Startu Symulatora:</label>
+            <input type="text" id="inputTime" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="18:30">
+          </div>
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs font-mono-code mb-1">Plan po powrocie do grawitacji 1G:</label>
+          <input type="text" id="inputNote" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500" value="Po lądowaniu stabilizacja pulsu przy gęstej gorącej czekoladzie.">
+        </div>
+
+        <div class="border-t border-gray-800 pt-3 mt-3">
+          <label class="block text-indigo-400 text-xs font-mono-code mb-1">🔑 Klucz do otwarcia strony (PIN):</label>
+          <input type="text" id="inputPasscode" class="w-full bg-gray-900 border border-indigo-700/60 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" value="2110">
+          <p class="text-[10px] text-gray-500 mt-1">Domyślnie: 2110 (czyli 21.10). Wpisz co chcesz!</p>
+        </div>
+
+        <div>
+          <label class="block text-emerald-400 text-xs font-mono-code mb-1">📲 Twój nr telefonu (WhatsApp - format z 48):</label>
+          <input type="text" id="inputPhone" class="w-full bg-gray-900 border border-emerald-700/60 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500" placeholder="np. 48123456789" value="">
+          <p class="text-[10px] text-gray-500 mt-1">Gdy kliknie „Lecę!”, otworzy się jej WhatsApp z gotową wiadomością do Ciebie.</p>
+        </div>
+
+        <div>
+          <label class="block text-sky-400 text-xs font-mono-code mb-1">✉️ Twój e-mail (opcjonalnie do kopii mailowej):</label>
+          <input type="email" id="inputEmail" class="w-full bg-gray-900 border border-sky-700/60 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500" placeholder="twoj@email.com" value="">
+        </div>
+      </div>
+
+      <div class="pt-3 flex justify-end">
+        <button id="saveEditBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-semibold text-sm shadow-lg transition">
+          Zapisz i zamknij
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <main class="relative z-10 w-full max-w-3xl mx-auto px-4 py-8 flex-1 flex flex-col items-center justify-center">
+
+    <!-- Efektowne wprowadzenie -->
+    <div class="text-center mb-8 max-w-xl">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/60 border border-indigo-700/50 text-indigo-300 text-xs font-mono-code mb-4">
+        <span class="w-2 h-2 rounded-full bg-pink-500 animate-ping"></span>
+        STATUS: ODPRAWA PRZEDSTARTOWA • SYMULATORY VR
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-100 to-pink-200 bg-clip-text text-transparent">
+        Lot na Orbitę ISS: 406 km
+      </h2>
+      <p class="mt-3 text-sm sm:text-base text-gray-300 font-romantic italic">
+        „Kapsuły 360°, siłowniki przeciążeń, gogle VR i stan nieważkości. Każde z nas w swoim kokpicie – ciekawe, kto z nas głośniej krzyknie przy starcie.”
+      </p>
+    </div>
+
+    <!-- KARTA POKŁADOWA (Bilet Kosmiczny) -->
+    <div id="boardingPassCard" class="w-full glass-panel rounded-3xl overflow-hidden holo-glow border border-indigo-400/25 transition-all duration-300 transform hover:scale-[1.01]">
+      
+      <!-- Nagłówek biletu -->
+      <div class="bg-gradient-to-r from-indigo-900/90 via-slate-900/90 to-pink-950/90 px-6 py-4 border-b border-white/10 flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center space-x-3">
+          <div class="text-2xl">🥽</div>
+          <div>
+            <span class="text-[10px] tracking-widest font-mono-code text-indigo-300 uppercase block">Planetarium Śląskie • Symulatory Lotu VR</span>
+            <span class="font-bold text-white text-sm sm:text-base tracking-wide">KARTA POKŁADOWA • ORBITAL VR EXPERIENCE</span>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-[10px] font-mono-code text-gray-400 block">KAPSUŁA & DOCK</span>
+          <span class="font-mono-code text-xs font-bold text-pink-400 bg-pink-500/10 px-2.5 py-0.5 rounded-full border border-pink-500/20">OBRÓT 360° • SIŁOWNIKI ON</span>
+        </div>
+      </div>
+
+      <!-- Treść Biletu: Siatka parametrów lotu -->
+      <div class="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Kolumna 1 i 2: Główne dane -->
+        <div class="md:col-span-2 space-y-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-[11px] font-mono-code text-indigo-300 uppercase tracking-wider">Załogantka (Kokpit 1)</p>
+              <h4 id="displayRecipient" class="text-lg sm:text-xl font-bold text-white tracking-tight">Dla Ciebie</h4>
+              <p class="text-xs text-gray-400">Gogle VR zapięte, zero grawitacji</p>
+            </div>
+            <div>
+              <p class="text-[11px] font-mono-code text-indigo-300 uppercase tracking-wider">Pilot Asystujący (Kokpit 2)</p>
+              <h4 id="displaySender" class="text-lg sm:text-xl font-bold text-white tracking-tight">Twój Pilot w Kapsule Obok</h4>
+              <p class="text-xs text-gray-400">Łączność radiowa na żywo</p>
+            </div>
+          </div>
+
+          <!-- Trasa & Współrzędne -->
+          <div class="bg-slate-900/80 rounded-2xl p-4 border border-white/5 flex items-center justify-between">
+            <div>
+              <span class="text-xl sm:text-2xl font-extrabold text-indigo-200">PARK ŚLĄSKI</span>
+              <p class="text-[11px] text-gray-400 font-mono-code mt-0.5">Stanowisko Kapsuł VR</p>
+            </div>
+            
+            <div class="flex flex-col items-center px-3">
+              <span class="text-[11px] font-mono-code text-pink-400 font-semibold">APOGEUM 406 KM</span>
+              <div class="w-16 sm:w-28 h-[2px] bg-gradient-to-r from-indigo-500 via-pink-500 to-indigo-500 my-1 relative">
+                <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 text-xs">🚀</div>
+              </div>
+              <span class="text-[10px] text-gray-400">Trajektoria ISS</span>
+            </div>
+
+            <div class="text-right">
+              <span class="text-xl sm:text-2xl font-extrabold text-pink-200">ORBITA ISS</span>
+              <p class="text-[11px] text-gray-400 font-mono-code mt-0.5">Stacja Kosmiczna</p>
+            </div>
+          </div>
+
+          <!-- Data, Czas, Wrota -->
+          <div class="grid grid-cols-3 gap-3 pt-1">
+            <div class="bg-indigo-950/30 p-3 rounded-xl border border-indigo-500/20">
+              <span class="text-[10px] font-mono-code text-gray-400 block">DATA MISJI</span>
+              <span id="displayDate" class="text-sm sm:text-base font-bold text-pink-300">21 Października</span>
+            </div>
+            <div class="bg-indigo-950/30 p-3 rounded-xl border border-indigo-500/20">
+              <span class="text-[10px] font-mono-code text-gray-400 block">START SILNIKÓW</span>
+              <span id="displayTime" class="text-sm sm:text-base font-bold text-indigo-300">18:30</span>
+            </div>
+            <div class="bg-indigo-950/30 p-3 rounded-xl border border-indigo-500/20">
+              <span class="text-[10px] font-mono-code text-gray-400 block">TRYB SYMULATORA</span>
+              <span class="text-sm sm:text-base font-bold text-white">360° MOTION</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolumna 3: Stub kontrolny i kod kreskowy -->
+        <div class="border-t md:border-t-0 md:border-l border-dashed border-gray-700/80 pt-6 md:pt-0 md:pl-6 flex flex-col justify-between items-center text-center">
+          <div class="w-full">
+            <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-tr from-indigo-500/20 to-pink-500/20 border border-indigo-400/30 flex items-center justify-center text-2xl mb-2">
+              🛰️
+            </div>
+            <p class="text-xs font-mono-code text-indigo-300">ODBIÓR TELEMETRII</p>
+            <p class="text-[11px] text-gray-400 mt-1">Siedzimy w oddzielnych kapsułach, więc pełne skupienie na sterach. Zobaczymy, kto lepiej zniesie przeciążenia!</p>
+          </div>
+
+          <!-- Kod kreskowy SVG / paski -->
+          <div class="w-full my-4 py-2 bg-slate-950/60 rounded-lg flex flex-col items-center justify-center px-4">
+            <div class="flex items-center space-x-[3px] overflow-hidden justify-center w-full py-1">
+              <div class="barcode-line w-1"></div>
+              <div class="barcode-line w-2"></div>
+              <div class="barcode-line w-0.5"></div>
+              <div class="barcode-line w-1.5"></div>
+              <div class="barcode-line w-1"></div>
+              <div class="barcode-line w-3"></div>
+              <div class="barcode-line w-1"></div>
+              <div class="barcode-line w-2"></div>
+              <div class="barcode-line w-0.5"></div>
+              <div class="barcode-line w-2.5"></div>
+              <div class="barcode-line w-1"></div>
+              <div class="barcode-line w-1.5"></div>
+              <div class="barcode-line w-2"></div>
+            </div>
+            <span class="text-[9px] font-mono-code text-gray-400 tracking-widest mt-1">VR-SIM-ISS-406KM-21-10</span>
+          </div>
+
+          <div class="w-full">
+            <button id="scanPassBtn" class="w-full py-2 px-3 rounded-xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-mono-code text-indigo-200 transition flex items-center justify-center gap-1.5 shadow-sm">
+              <span>🔍</span>
+              <span>Kalibruj gogle VR</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Dolny pasek z notatką o czekoladzie -->
+      <div class="bg-black/40 px-6 py-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+        <div class="flex items-center gap-2">
+          <span class="text-pink-400">☕ Plan po lądowaniu:</span>
+          <span id="displayNote" class="italic text-gray-300">Po powrocie do grawitacji 1G – obowiązkowa gorąca czekolada i omówienie lotu.</span>
+        </div>
+        <div class="font-mono-code text-[10px] text-gray-500">
+          STATUS: GOTOWA DO ODPRAWY
+        </div>
+      </div>
+
+    </div>
+
+    <div class="w-full max-w-xl mt-8 glass-panel rounded-2xl p-6 text-center border border-white/10 shadow-xl space-y-4">
+      <h3 class="text-lg font-bold text-white flex items-center justify-center gap-2">
+        <span>👩‍🚀</span> Meldunek przedstartowy, Załogantko:
+      </h3>
+      <p class="text-xs text-gray-300">
+        Wchodzisz do kapsuły 360°, zakładasz gogle i lecimy na 406 km 21 października?
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <button id="acceptBtn" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold text-sm shadow-lg shadow-emerald-500/20 transform hover:-translate-y-0.5 active:translate-y-0 transition flex items-center justify-center gap-2">
+          <span>🚀</span>
+          <span>Zakładam gogle i wchodzę do kapsuły!</span>
+        </button>
+
+        <button id="sweetConditionBtn" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-gray-700 text-gray-200 text-sm font-medium transition flex items-center justify-center gap-2">
+          <span>☕</span>
+          <span>Lecę, ale po lądowaniu stawiasz czekoladę!</span>
+        </button>
+      </div>
+
+      <!-- Szybkie opcje powiadomienia (pojawiają się po kliknięciu wyboru) -->
+      <div id="notifyChoiceBox" class="hidden pt-3 border-t border-white/10 space-y-2">
+        <p class="text-xs font-mono-code text-indigo-300">Wybierz sposób przesłania meldunku do Pilota:</p>
+        <div class="flex items-center justify-center gap-2">
+          <a id="sendWhatsAppLink" target="_blank" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow">
+            <span>💬</span> Wyślij na WhatsApp Pilota
+          </a>
+          <a id="sendMailLink" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow">
+            <span>✉️</span> Wyślij Maila
+          </a>
+        </div>
+      </div>
+
+      <!-- Okienko potwierdzenia -->
+      <div id="rsvpResponseBox" class="hidden p-4 rounded-xl bg-indigo-950/80 border border-indigo-400/40 text-center animate-fade-in">
+        <p id="rsvpResponseText" class="text-sm font-semibold text-pink-300"></p>
+        <p class="text-xs text-gray-300 mt-1">Kapsuła VR zarezerwowana. Odliczamy dni do 21.10! Będzie kosmicznie! 🪐</p>
+      </div>
+    </div>
+
+    <div class="w-full max-w-xl mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+      <div class="glass-panel p-3.5 rounded-xl border border-white/5">
+        <div class="text-xl mb-1">🥽</div>
+        <h5 class="text-xs font-bold text-indigo-300 uppercase font-mono-code">1. Start i VR</h5>
+        <p class="text-xs text-gray-400 mt-1">Własne kapsuły, gogle VR na oczach i przeciążenia siłowników podczas wznoszenia.</p>
+      </div>
+      <div class="glass-panel p-3.5 rounded-xl border border-white/5">
+        <div class="text-xl mb-1">🛰️</div>
+        <h5 class="text-xs font-bold text-pink-300 uppercase font-mono-code">2. Orbita 406 km</h5>
+        <p class="text-xs text-gray-400 mt-1">Dokowanie do ISS, widok Ziemi z 406 kilometrów i chwila stanu nieważkości.</p>
+      </div>
+      <div class="glass-panel p-3.5 rounded-xl border border-white/5">
+        <div class="text-xl mb-1">☕</div>
+        <h5 class="text-xs font-bold text-emerald-300 uppercase font-mono-code">3. Dekompresja</h5>
+        <p class="text-xs text-gray-400 mt-1">Zdjęcie gogli, wspólny śmiech z wrażeń i regeneracja przy gorącej czekoladzie.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="relative z-10 w-full text-center py-4 text-[11px] font-mono-code text-gray-500 border-t border-white/5">
+    Planetarium – Śląski Park Nauki • Symulatory VR • 21 Października
+  </footer>
+
+  <script>
+    // --- 1. GWIEZDNE TŁO (Canvas Starfield) ---
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    let shootingStars = [];
+    let width, height;
+
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      initStars();
+    }
+
+    function initStars() {
+      stars = [];
+      const numStars = Math.floor((width * height) / 2500);
+      for (let i = 0; i < numStars; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 1.8 + 0.3,
+          alpha: Math.random() * 0.8 + 0.2,
+          speed: Math.random() * 0.02 + 0.005,
+          color: Math.random() > 0.3 ? '#ffffff' : (Math.random() > 0.5 ? '#a5b4fc' : '#f472b6')
+        });
+      }
+    }
+
+    function createShootingStar() {
+      if (shootingStars.length < 2 && Math.random() < 0.015) {
+        shootingStars.push({
+          x: Math.random() * width,
+          y: Math.random() * (height / 2),
+          length: Math.random() * 80 + 40,
+          speed: Math.random() * 8 + 6,
+          angle: Math.PI / 4 + (Math.random() * 0.2 - 0.1),
+          alpha: 1
+        });
+      }
+    }
+
+    function renderStarfield() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Rysowanie gwiazd stałych
+      for (let star of stars) {
+        star.alpha += star.speed;
+        if (star.alpha > 1 || star.alpha < 0.2) star.speed = -star.speed;
+
+        ctx.fillStyle = star.color;
+        ctx.globalAlpha = Math.max(0.1, Math.min(1, star.alpha));
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Rysowanie spadających gwiazd
+      createShootingStar();
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const s = shootingStars[i];
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.8;
+        ctx.globalAlpha = s.alpha;
+
+        const tailX = s.x - Math.cos(s.angle) * s.length;
+        const tailY = s.y - Math.sin(s.angle) * s.length;
+
+        const grad = ctx.createLinearGradient(s.x, s.y, tailX, tailY);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grad.addColorStop(1, 'rgba(192, 132, 252, 0)');
+        ctx.strokeStyle = grad;
+
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(tailX, tailY);
+        ctx.stroke();
+        ctx.restore();
+
+        s.x += Math.cos(s.angle) * s.speed;
+        s.y += Math.sin(s.angle) * s.speed;
+        s.alpha -= 0.015;
+
+        if (s.alpha <= 0 || s.x > width || s.y > height) {
+          shootingStars.splice(i, 1);
+        }
+      }
+
+      requestAnimationFrame(renderStarfield);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    renderStarfield();
+
+    let audioCtx = null;
+    let isAudioPlaying = false;
+    let ambientDroneOsc1 = null;
+    let ambientDroneOsc2 = null;
+    let ambientGain = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function toggleAmbientSound() {
+      initAudio();
+      const audioBtn = document.getElementById('audioBtn');
+      const audioIcon = document.getElementById('audioIcon');
+      const audioLabel = document.getElementById('audioLabel');
+
+      if (!isAudioPlaying) {
+        // Dźwięk tła: łagodny kosmiczny drone
+        ambientGain = audioCtx.createGain();
+        ambientGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+
+        ambientDroneOsc1 = audioCtx.createOscillator();
+        ambientDroneOsc1.type = 'sine';
+        ambientDroneOsc1.frequency.setValueAtTime(110, audioCtx.currentTime); // A2
+
+        ambientDroneOsc2 = audioCtx.createOscillator();
+        ambientDroneOsc2.type = 'sine';
+        ambientDroneOsc2.frequency.setValueAtTime(164.81, audioCtx.currentTime); // E3
+
+        ambientDroneOsc1.connect(ambientGain);
+        ambientDroneOsc2.connect(ambientGain);
+        ambientGain.connect(audioCtx.destination);
+
+        ambientDroneOsc1.start();
+        ambientDroneOsc2.start();
+
+        isAudioPlaying = true;
+        audioIcon.innerText = '🔊';
+        audioLabel.innerText = 'Dźwięk: ON';
+        audioBtn.classList.add('border-indigo-400', 'text-white');
+      } else {
+        if (ambientGain) {
+          ambientGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
+          setTimeout(() => {
+            if (ambientDroneOsc1) ambientDroneOsc1.stop();
+            if (ambientDroneOsc2) ambientDroneOsc2.stop();
+          }, 800);
+        }
+        isAudioPlaying = false;
+        audioIcon.innerText = '🔈';
+        audioLabel.innerText = 'Dźwięk: OFF';
+        audioBtn.classList.remove('border-indigo-400', 'text-white');
+      }
+    }
+
+    // Dźwięk skanera / kosmicznego gongu
+    function playCosmicBeep(freq = 587.33, duration = 0.5) {
+      if (!audioCtx) initAudio();
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    document.getElementById('audioBtn').addEventListener('click', toggleAmbientSound);
+
+    // --- USTAWIENIA KONFIGURACYJNE (PIN, WHATSAPP, EMAIL) ---
+    // Możesz też przekazać klucz w URL: ?key=alpaka2110
+    let configPasscode = "alpaka2110";
+    let targetPhone = ""; // np. "48500753659"
+    let targetEmail = ""; // np. "Banasik.paul@gmail.com"
+
+    // Sprawdzenie URL params (opcjonalne obejście PINu: ?key=2110)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramKey = urlParams.get('key');
+    if (paramKey && paramKey.trim() === configPasscode) {
+      document.getElementById('accessGate').classList.add('hidden');
+    }
+
+    // Obsługa ekranu blokady
+    const gatePasscode = document.getElementById('gatePasscode');
+    const gateSubmitBtn = document.getElementById('gateSubmitBtn');
+    const gateError = document.getElementById('gateError');
+    const accessGate = document.getElementById('accessGate');
+
+    function checkPasscode() {
+      const entered = gatePasscode.value.trim().toLowerCase();
+      if (entered === configPasscode.toLowerCase()) {
+        gateError.classList.add('hidden');
+        accessGate.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        accessGate.style.opacity = '0';
+        accessGate.style.transform = 'scale(1.05)';
+        setTimeout(() => {
+          accessGate.classList.add('hidden');
+        }, 600);
+        playCosmicBeep(659.25, 0.4);
+      } else {
+        gateError.classList.remove('hidden');
+        gatePasscode.classList.add('ring-2', 'ring-rose-500');
+        setTimeout(() => gatePasscode.classList.remove('ring-2', 'ring-rose-500'), 1500);
+      }
+    }
+
+    gateSubmitBtn.addEventListener('click', checkPasscode);
+    gatePasscode.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') checkPasscode();
+    });
+
+    const acceptBtn = document.getElementById('acceptBtn');
+    const sweetConditionBtn = document.getElementById('sweetConditionBtn');
+    const rsvpBox = document.getElementById('rsvpResponseBox');
+    const rsvpText = document.getElementById('rsvpResponseText');
+    const notifyChoiceBox = document.getElementById('notifyChoiceBox');
+    const sendWhatsAppLink = document.getElementById('sendWhatsAppLink');
+    const sendMailLink = document.getElementById('sendMailLink');
+
+    function prepareNotificationLinks(decisionText) {
+      const recipientName = document.getElementById('displayRecipient').innerText;
+      const cleanPhone = targetPhone.replace(/[^0-9]/g, '');
+      const message = `🚀 Meldunek z kapsuły VR (${recipientName}):\n"${decisionText}"\nWidzimy się 21.10 w Planetarium Śląskim!`;
+      const encodedMsg = encodeURIComponent(message);
+
+      // WhatsApp URL
+      if (cleanPhone) {
+        sendWhatsAppLink.href = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
+        sendWhatsAppLink.classList.remove('hidden');
+      } else {
+        // Jeśli nie podano numeru, wywołaj WhatsApp z uniwersalnym tekstem
+        sendWhatsAppLink.href = `https://api.whatsapp.com/send?text=${encodedMsg}`;
+      }
+
+      // Email URL
+      const email = targetEmail.trim();
+      const subject = encodeURIComponent("🚀 Meldunek przedstartowy: Misja VR 21.10");
+      sendMailLink.href = `mailto:${email}?subject=${subject}&body=${encodedMsg}`;
+
+      notifyChoiceBox.classList.remove('hidden');
+
+      // Jeśli skonfigurowany jest numer telefonu, automatycznie otwórz WhatsApp w nowej karcie po 1.2 sekundy
+      if (cleanPhone) {
+        setTimeout(() => {
+          window.open(`https://wa.me/${cleanPhone}?text=${encodedMsg}`, '_blank');
+        }, 1200);
+      }
+    }
+
+    function triggerStarConfetti() {
+      // Wystrzelenie kolorowych gwiezdnych drobin
+      confetti({
+        particleCount: 80,
+        spread: 90,
+        origin: { y: 0.65 },
+        colors: ['#818cf8', '#f472b6', '#38bdf8', '#fbbf24', '#ffffff']
+      });
+      playCosmicBeep(783.99, 0.4); // G5
+      setTimeout(() => playCosmicBeep(1046.50, 0.6), 200); // C6
+    }
+
+    acceptBtn.addEventListener('click', () => {
+      rsvpBox.classList.remove('hidden');
+      const text = 'Zakładam gogle i wchodzę do kapsuły! Zobaczymy, kto lepiej zniesie przeciążenia!';
+      rsvpText.innerText = '🎉 Wspaniale! Status pasażera: POTWIERDZONY.';
+      triggerStarConfetti();
+      prepareNotificationLinks(text);
+    });
+
+    sweetConditionBtn.addEventListener('click', () => {
+      rsvpBox.classList.remove('hidden');
+      const text = 'Wchodzę do kapsuły VR, ale pamiętaj: po lądowaniu obowiązkowa gorąca czekolada!';
+      rsvpText.innerText = '☕ Warunek przyjęty! Deser i gorąca czekolada wpisane w oficjalny protokół!';
+      triggerStarConfetti();
+      prepareNotificationLinks(text);
+    });
+
+    // Przycisk testu biletu (Skaner)
+    document.getElementById('scanPassBtn').addEventListener('click', () => {
+      playCosmicBeep(440, 0.2);
+      setTimeout(() => playCosmicBeep(880, 0.3), 150);
+      const card = document.getElementById('boardingPassCard');
+      card.classList.add('ring-2', 'ring-pink-500');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-pink-500'), 1200);
+      
+      const scanBtn = document.getElementById('scanPassBtn');
+      const original = scanBtn.innerHTML;
+      scanBtn.innerHTML = '<span>✅</span><span>Bilet zweryfikowany: 100% Ważny</span>';
+      setTimeout(() => scanBtn.innerHTML = original, 2500);
+    });
+
+    const editModal = document.getElementById('editModal');
+    const editToggleBtn = document.getElementById('editToggleBtn');
+    const closeEditBtn = document.getElementById('closeEditBtn');
+    const saveEditBtn = document.getElementById('saveEditBtn');
+
+    editToggleBtn.addEventListener('click', () => {
+      editModal.classList.remove('hidden');
+    });
+
+    closeEditBtn.addEventListener('click', () => {
+      editModal.classList.add('hidden');
+    });
+
+    saveEditBtn.addEventListener('click', () => {
+      const recipient = document.getElementById('inputRecipient').value.trim() || 'Leo';
+      const sender = document.getElementById('inputSender').value.trim() || 'Twój Kate';
+      const date = document.getElementById('inputDate').value.trim() || '21 Października';
+      const time = document.getElementById('inputTime').value.trim() || '18:15';
+      const note = document.getElementById('inputNote').value.trim() || 'Po seansie lądowanie na deserze...';
+
+      // Nowe pola: PIN, WhatsApp, Email
+      configPasscode = document.getElementById('inputPasscode').value.trim() || '2110';
+      targetPhone = document.getElementById('inputPhone').value.trim();
+      targetEmail = document.getElementById('inputEmail').value.trim();
+
+      document.getElementById('displayRecipient').innerText = recipient;
+      document.getElementById('displaySender').innerText = sender;
+      document.getElementById('displayDate').innerText = date;
+      document.getElementById('displayTime').innerText = time;
+      document.getElementById('displayNote').innerText = note;
+
+      editModal.classList.add('hidden');
+      playCosmicBeep(659.25, 0.3); // E5
+    });
+
+    // Zamknięcie modalu po kliknięciu w tło
+    editModal.addEventListener('click', (e) => {
+      if (e.target === editModal) editModal.classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
